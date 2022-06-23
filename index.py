@@ -3,7 +3,6 @@ import os
 
 import discord
 
-import scrape
 from bs4 import BeautifulSoup
 import requests
 from discord.ext import commands
@@ -31,6 +30,8 @@ async def test(ctx, arg):
 
 @client.command()
 async def idnp(ctx, idnp):
+    await ctx.message.delete()
+    tmp_mess = await ctx.send(f"Procesarea informației pentru {ctx.message.author.display_name}")
     parametru = {'idnp': idnp}
     with requests.session() as s:
         url = "https://api.ceiti.md/date/login"
@@ -58,6 +59,6 @@ async def idnp(ctx, idnp):
     embedVar.add_field(name="Diriginte", value=str(data[6][0]), inline=True)
     embedVar.add_field(name="Sef de sectie", value=str(data[7][0]), inline=True)
     await ctx.send(embed=embedVar)
-
+    await tmp_mess.delete()
 
 client.run(TOKEN)
