@@ -1,64 +1,79 @@
-# bot.py
-import os
-
 import discord
-
+from discord.ext import commands
 from bs4 import BeautifulSoup
 import requests
-from discord.ext import commands
 
-TOKEN = 'NzIzMDkwMDgwNjAzOTYzNDQz.Xuskew.bovs81LDuz8XdC-rGsQW3qQyOOM'
-GUILD = '636288911538389032'
-client = commands.Bot(command_prefix='!')
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
 
+TOKEN = ''
+client = commands.Bot(command_prefix='!',intents=intents)
 
-@client.event
-async def on_ready():
-    print(
-        f'{client.user} tocmai s-a conectat pe server\n'
-    )
-
-
-@client.command()
-async def ping(ctx):
-    await ctx.send('Pong!')
-
-
-async def test(ctx, arg):
-    await ctx.send(arg)
-
+butoane = [
+        "Date personale",
+        "Semestrul 1",
+        "Semestrul 2",
+        "Examen Sem 1",
+        "Examen Sem 2",
+        "Examen Sem 3",
+        "Examen Sem 4",
+        "Examen Sem 5",
+        "Examen Sem 6",
+        "Examen Sem 7",
+        "Examen Sem 8",
+    ]
 
 @client.command()
 async def idnp(ctx, idnp):
-    await ctx.message.delete()
+    #await ctx.message.delete()
     tmp_mess = await ctx.send(f"Procesarea informației pentru {ctx.message.author.display_name}")
     parametru = {'idnp': idnp}
+
+    global butoane
+
+    embeds = {}
     with requests.session() as s:
         url = "https://api.ceiti.md/date/login"
         cerere = s.post(url, data=parametru)
 
         pagina = BeautifulSoup(cerere.text, 'html.parser')
-        with open("pagina.html", "w", encoding="utf-8") as file:
-            file.write(str(pagina))
-        table = pagina.find("table", attrs={"class": "table table-bordered table-condensed table-hover table-white"})
-    data = []
+        tables = pagina.find_all("table")
 
-    rows = table.find_all('tr')
-    for row in rows:
-        cols = row.find_all('td')
-        cols = [ele.text.strip() for ele in cols]
-        data.append([ele for ele in cols if ele])
+        for i in range(7):
+            tables.pop()
 
-    embedVar = discord.Embed(title="Date personale", description=" ", color=0x00ff00)
-    embedVar.add_field(name="Nume", value=str(data[0][0]), inline=True)
-    embedVar.add_field(name="Prenume", value=str(data[1][0]), inline=True)
-    embedVar.add_field(name="Patronimic", value=str(data[2][0]), inline=True)
-    embedVar.add_field(name="Anul de studii", value=str(data[3][0]), inline=True)
-    embedVar.add_field(name="Grupa", value=str(data[4][0]), inline=True)
-    embedVar.add_field(name="Specialitatea", value=str(data[5][0]), inline=True)
-    embedVar.add_field(name="Diriginte", value=str(data[6][0]), inline=True)
-    embedVar.add_field(name="Sef de sectie", value=str(data[7][0]), inline=True)
-    await ctx.send(embed=embedVar)
-    await tmp_mess.delete()
+        for i, table in enumerate(tables):
+            data = []
+            rows = table.find_all('tr')
+            for row in rows:
+                cols = row.find_all("th") + row.find_all("td")
+                cols = [ele.text.strip() for ele in cols]
+                data.append(cols)
+
+            embedVar = discord.Embed(title=butoane[i], description="", color=0x00ff00)
+            for v in data:
+                if v[1] != "" and v[1] != "Note" and v[1] != "Nota":
+                    embedVar.add_field(name=v[0], value=v[1])
+            embeds[butoane[i]] = embedVar
+
+    class Dropdown(discord.ui.Select):
+        def __init__(self):
+            options = [discord.SelectOption(label=opt) for opt in butoane]
+
+            super().__init__(placeholder='Alege optiunea', min_values=1, max_values=1, options=options)
+
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.edit_message(embed=embeds[self.values[0]])
+
+
+    class DropdownView(discord.ui.View):
+        def __init__(self):
+            super().__init__()
+
+            self.add_item(Dropdown())
+
+    await ctx.send(embed=embeds[butoane[0]],view=DropdownView())
+
 
 client.run(TOKEN)
